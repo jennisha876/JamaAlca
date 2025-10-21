@@ -2,13 +2,16 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk, simpledialog
 import random
 from predict_disease import predict_disease
+from PIL import Image, ImageTk
+import threading
 from treatment_recommendation import get_treatment_recommendation
+from weather_screen import WeatherScreen
 
 plant_classes = ["Tomato Healthy", "Tomato Late Blight", "Potato Healthy", "Corn Healthy"]
-
+'''
 def predict_disease(image_path):
     return random.choice(plant_classes)
-
+'''
 def suggest_crops(season, soil):
     return ["Tomato", "Corn", "Potato"]
 
@@ -214,6 +217,25 @@ class PlantScreen(tk.Frame):
             bg="#f9f9f9"
         ).pack(anchor="w", padx=15, pady=(10, 2))
 
+        # Crop selection
+        tk.Label(
+            scrollable_frame,
+            text="Select Crop:",
+            font=("Arial", 12),
+            fg="#2c4a3a",
+            bg="#f9f9f9"
+        ).pack(anchor="w", padx=15, pady=(5, 0))
+
+        self.selected_crop = tk.StringVar(value="Select Crop")
+        crop_dropdown = ttk.Combobox(
+            scrollable_frame,
+            textvariable=self.selected_crop,
+            values=["Tomato", "Corn", "Potato", "Wheat"],
+            state="readonly",
+            font=("Arial", 11)
+        )
+        crop_dropdown.pack(fill="x", padx=15, pady=(0, 10))
+
         tk.Label(
             scrollable_frame,
             text="Take or upload a photo to check crop health",
@@ -290,22 +312,27 @@ class PlantScreen(tk.Frame):
             if not image_path:
                 return
 
-            # ========= 1. Call Azure Custom Vision ========== 
-            disease, confidence = predict_disease(image_path) 
+            # Check crop selection
+            crop_name = self.selected_crop.get()
+            if crop_name == "Select Crop":
+                messagebox.showerror("Error", "Please select a crop before analysis.")
+                return
+
+            # Pass both crop_name & image_path to predict_disease
+            disease, confidence = predict_disease(image_path, crop_name)
 
             healthy = "healthy" in disease.lower()
 
-            # ========= 2. Call Azure OpenAI for treatment ===
+            # Get treatment advice if not healthy
             treatment = []
             if not healthy:
-                suggestion_text = get_treatment_recommendation(disease) 
-                treatment = suggestion_text.split("\n")  # split into list for display
+                suggestion_text = get_treatment_recommendation(disease)
+                treatment = suggestion_text.split("\n")
 
             self.overlay.destroy()
 
-            # Pass real data to result card
             self._show_result({
-                "crop": disease.split()[0],
+                "crop": crop_name,
                 "healthy": healthy,
                 "disease": None if healthy else disease,
                 "confidence": confidence,
@@ -490,7 +517,7 @@ class ProfileScreen(tk.Frame):
     def logout(self):
         messagebox.showinfo("Logout", "You have been logged out.")
 
-
+'''
 class WeatherScreen(tk.Frame):
     def __init__(self, parent, controller=None):
         super().__init__(parent, bg="#f5f3f0")
@@ -651,7 +678,7 @@ class WeatherScreen(tk.Frame):
             row.pack(anchor="w", pady=2)
             tk.Label(row, text=icon, font=("Arial", 11, "bold"), fg="#2c4a3a", bg=bg, width=2).pack(side="left")
             tk.Label(row, text=text, font=("Arial", 11), fg="#2c4a3a", bg=bg, wraplength=400, justify="left").pack(side="left")
-
+'''
 
 class CommunityScreen(tk.Frame):
     def __init__(self, parent, controller=None):
@@ -849,4 +876,4 @@ class AlertsScreen(tk.Frame):
 if __name__ == "__main__":
     app = JamaAlca()
     app.mainloop()
-    root.mainloop()
+#    root.mainloop()
