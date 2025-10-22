@@ -1,3 +1,4 @@
+from notifications import NotificationManager, NotificationCenter
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk, simpledialog
 import random
@@ -23,15 +24,22 @@ class JamaAlca(tk.Tk):
         super().__init__()
         self.title("JamaAlca")
         self.geometry("700x600")
+
+        # Create a NotificationManager instance here:
+        self.notif_manager = NotificationManager(self)
+
         self.frames = {}
         for F in (HomeScreen, ProfileScreen, PlantScreen, CropScreen, WeatherScreen, CommunityScreen, AlertsScreen):
             frame = F(parent=self, controller=self)
             self.frames[F.__name__] = frame
             frame.place(relwidth=1, relheight=1)
         self.show_frame("HomeScreen")
+
     def show_frame(self, frame_name):
         frame = self.frames[frame_name]
         frame.tkraise()
+    def open_notification_center(self):
+        NotificationCenter(self, self.notif_manager)
 
 class HomeScreen(tk.Frame):
     def __init__(self, parent, controller):
@@ -70,9 +78,21 @@ class HomeScreen(tk.Frame):
 
         tk.Label(header_frame, text="Here’s your farm overview for today.",
                 font=("Arial", 11), fg="#6b7c6f", bg="#f9f9f9").pack(anchor="w")
-
+        '''
         alert_btn = tk.Button(header_frame, text="🔔",font=("Arial", 16), bg="#f9f9f9", bd=0, relief="flat", cursor="hand2",
         command=lambda: controller.show_frame("AlertsScreen"))
+        '''
+        alert_btn = tk.Button(
+            header_frame,
+            text="🔔",
+            font=("Arial", 16),
+            bg="#f9f9f9",
+            bd=0,
+            relief="flat",
+            cursor="hand2",
+            command=controller.open_notification_center
+        )
+
         alert_btn.pack(side="right")
 
         # Drought Warning Banner
@@ -840,7 +860,7 @@ class CommunityScreen(tk.Frame):
         })
         self.refresh_posts()
         messagebox.showinfo("Success", "Discussion posted!")
-
+'''
 class AlertsScreen(tk.Frame):
     def __init__(self, parent, controller=None):
         super().__init__(parent, bg="#f5f3f0")
@@ -870,7 +890,28 @@ class AlertsScreen(tk.Frame):
             self.alerts_list_frame = tk.Frame(alerts_frame, bg="#f5f3f0")
             self.alerts_list_frame.pack(fill="both", expand=True)
             self.refresh_alerts()
+'''
+class AlertsScreen(tk.Frame):
+    def __init__(self, parent, controller):
+        super().__init__(parent, bg="#f5f3f0")
+        self.controller = controller
 
+        tk.Label(self, text="🚨 Alerts", font=("Arial", 22, "bold"), fg="#2c4a3a", bg="#f5f3f0").pack(pady=(15, 5))
+
+        self.alerts_list_frame = tk.Frame(self, bg="#f5f3f0")
+        self.alerts_list_frame.pack(fill="both", expand=True, padx=15, pady=10)
+        self.refresh_alerts()
+
+    def refresh_alerts(self):
+        for widget in self.alerts_list_frame.winfo_children():
+            widget.destroy()
+
+        for notif in reversed(self.controller.notif_manager.notifications):
+            frame = tk.Frame(self.alerts_list_frame, bg="white", bd=1, relief="solid")
+            frame.pack(fill="x", pady=3)
+            tk.Label(frame, text=notif.title, font=("Arial", 12, "bold"), bg="white").pack(anchor="w", padx=10, pady=(3,0))
+            tk.Label(frame, text=notif.message, font=("Arial", 10), bg="white", wraplength=450, justify="left").pack(anchor="w", padx=10, pady=(0,5))
+            tk.Label(frame, text=notif.timestamp, font=("Arial", 9), fg="#777", bg="white").pack(anchor="e", padx=10)
 
 # --- Run standalone window for testing ---
 if __name__ == "__main__":
