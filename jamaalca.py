@@ -1,10 +1,13 @@
-from notifications import NotificationManager, NotificationCenter
+#import list
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk, simpledialog
+import threading
 import random
+
+#From list
+from notifications import NotificationManager, NotificationCenter
+from tkinter import filedialog, messagebox, ttk, simpledialog
 from predict_disease import predict_disease
 from PIL import Image, ImageTk
-import threading
 from treatment_recommendation import get_treatment_recommendation
 from weather_screen import WeatherScreen
 
