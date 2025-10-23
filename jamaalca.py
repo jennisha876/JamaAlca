@@ -1,6 +1,12 @@
 import tkinter as tk
 import threading
 
+#import list
+import tkinter as tk
+import threading
+import random
+
+#From list
 from notifications import NotificationManager, NotificationCenter
 from tkinter import filedialog, messagebox, ttk, simpledialog
 from predict_disease import predict_disease

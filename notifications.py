@@ -25,6 +25,7 @@ class NotificationManager:
         self.notifications = []
         self.running = True
         self.badge_callback = badge_callback
+<<<<<<< HEAD
         # Start demo generator only when enabled. Set NOTIF_DEMO=0 to disable in tests.
         try:
             demo_enabled = os.environ.get("NOTIF_DEMO", "1") != "0"
@@ -32,10 +33,14 @@ class NotificationManager:
             demo_enabled = True
         if demo_enabled:
             threading.Thread(target=self._auto_generate_demo, daemon=True).start()
+=======
+        threading.Thread(target=self._auto_generate_demo, daemon=True).start()
+>>>>>>> 49f54b686000b70708957c4cf3767fc45b58de63
 
     def post(self, title, message, category="General", severity=None, extra=None):
         notif = Notification(title, message, category, severity=severity, extra=extra)
         self.notifications.append(notif)
+<<<<<<< HEAD
         # Ensure UI work happens on the main Tk thread.
         try:
             # schedule toast creation on main loop
@@ -52,6 +57,10 @@ class NotificationManager:
                 self._update_badge()
             except Exception:
                 pass
+=======
+        self._show_toast(notif)
+        self._update_badge()
+>>>>>>> 49f54b686000b70708957c4cf3767fc45b58de63
 
     #Popup toast notification
     def _show_toast(self, notif):
@@ -72,8 +81,18 @@ class NotificationManager:
         tk.Label(header, text=notif.title, font=("Segoe UI", 10, "bold"), fg="white", bg=sev_color).pack(pady=(6, 3), padx=6, anchor="w")
         tk.Label(toast, text=notif.message, fg="#ddd", bg="#333", wraplength=250, justify="left").pack(pady=(0, 5), padx=6)
 
+<<<<<<< HEAD
         toast.after(4500, toast.destroy)
 
+=======
+        tk.Label(toast, text=notif.title, font=("Segoe UI", 10, "bold"),
+                 fg="white", bg="#333").pack(pady=(10, 0))
+        tk.Label(toast, text=notif.message, fg="#ddd", bg="#333",
+                 wraplength=250, justify="left").pack(pady=(0, 5))
+
+        toast.after(4500, toast.destroy)
+
+>>>>>>> 49f54b686000b70708957c4cf3767fc45b58de63
     #Demo farm notifications
     def _auto_generate_demo(self):
         examples = [
@@ -109,6 +128,7 @@ class NotificationManager:
             "Market": 1,
         }
 
+<<<<<<< HEAD
         # Rate-limit demo notifications so they don't spam the user.
         # Only post new notifications when unread_count is below a small threshold
         # and avoid posting too-frequently (roughly ~60s between posts).
@@ -144,6 +164,14 @@ class NotificationManager:
                 message = f"{msg} Forecast: {extra['forecast']}. Rain chance: {extra['rain_chance']}%."
                 self.post(title, message, cat, severity=sev, extra=extra)
             else:
+=======
+        while self.running:
+            time.sleep(random.randint(10, 25))
+            category = random.choices(list(weights.keys()), weights=list(weights.values()))[0]
+            options = [n for n in examples if n[2] == category]
+            if options:
+                title, msg, cat = random.choice(options)
+>>>>>>> 49f54b686000b70708957c4cf3767fc45b58de63
                 self.post(title, msg, cat)
 
     def stop(self):
@@ -169,16 +197,26 @@ class NotificationCenter(tk.Toplevel):
 
         tk.Label(self, text="Notifications", font=("Segoe UI", 14, "bold"),
                  bg="white").pack(pady=10)
+<<<<<<< HEAD
         self.tree = ttk.Treeview(self, columns=("Title","Category","Severity","Message","Time"), show="headings", height=20)
+=======
+
+        self.tree = ttk.Treeview(self, columns=("Title","Message","Time"), show="headings", height=20)
+>>>>>>> 49f54b686000b70708957c4cf3767fc45b58de63
         self.tree.heading("Title", text="Title")
         self.tree.heading("Category", text="Category")
         self.tree.heading("Severity", text="Severity")
         self.tree.heading("Message", text="Message")
         self.tree.heading("Time", text="Time")
+<<<<<<< HEAD
         self.tree.column("Title", width=120)
         self.tree.column("Category", width=80)
         self.tree.column("Severity", width=70)
         self.tree.column("Message", width=200)
+=======
+        self.tree.column("Title", width=130)
+        self.tree.column("Message", width=220)
+>>>>>>> 49f54b686000b70708957c4cf3767fc45b58de63
         self.tree.column("Time", width=100)
         self.tree.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -187,6 +225,11 @@ class NotificationCenter(tk.Toplevel):
         btn_frame.pack(pady=5)
         ttk.Button(btn_frame, text="Mark All as Read", command=self.mark_all_read).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="left", padx=5)
+<<<<<<< HEAD
+=======
+
+        self.populate()
+>>>>>>> 49f54b686000b70708957c4cf3767fc45b58de63
 
         self.populate()
         # Mark displayed notifications as read and refresh the view/badge
@@ -199,9 +242,14 @@ class NotificationCenter(tk.Toplevel):
             self.tree.delete(item)
         for notif in reversed(self.manager.notifications):
             tag = notif.category.lower()
+<<<<<<< HEAD
             sev = notif.severity
             self.tree.insert("", "end",
                 values=(notif.title, notif.category, sev, notif.message, notif.timestamp),
+=======
+            self.tree.insert("", "end",
+                values=(notif.title, notif.message, notif.timestamp),
+>>>>>>> 49f54b686000b70708957c4cf3767fc45b58de63
                 tags=(tag,))
         self.tree.tag_configure("weather", background="#e3f2fd")
         self.tree.tag_configure("watering", background="#e8f5e9")
