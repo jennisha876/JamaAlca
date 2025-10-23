@@ -1,2 +1,19 @@
-pillow
-tensorflow
+# Core dependencies
+pillow>=9.5.0  # Image processing
+tensorflow>=2.13.0  # Machine learning
+
+# Azure Services
+azure-cognitiveservices-vision-customvision>=3.1.0
+msrest>=0.7.1
+
+# Data handling
+requests>=2.31.0  # HTTP requests
+plyer>=2.1.0  # GPS functionality
+
+# UI
+tkinter  # Usually comes with Python
+
+# Development dependencies
+black  # Code formatting
+pytest  # Testing
+pylint  # Code analysis
