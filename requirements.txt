@@ -1,2 +1,4 @@
 pillow
 tensorflow
+pyodbc
+plyer

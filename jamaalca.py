@@ -1,36 +1,47 @@
-#import list
 import tkinter as tk
 import threading
-import random
 
-#From list
 from notifications import NotificationManager, NotificationCenter
 from tkinter import filedialog, messagebox, ttk, simpledialog
 from predict_disease import predict_disease
 from PIL import Image, ImageTk
 from treatment_recommendation import get_treatment_recommendation
 from weather_screen import WeatherScreen
+from scans import ScanStore
+from db import DBHelper
 
-plant_classes = ["Tomato Healthy", "Tomato Late Blight", "Potato Healthy", "Corn Healthy"]
-'''
-def predict_disease(image_path):
-    return random.choice(plant_classes)
-'''
+# Extracted screen modules
+from home_screen import HomeScreen
+from plant_screen import PlantScreen
+from profile_screen import ProfileScreen
+from crop_screen import CropScreen
+from community_screen import CommunityScreen
+from alerts_screen import AlertsScreen
+from soil_screen import SoilScreen
+from login_screen import LoginScreen
+
+
 def suggest_crops(season, soil):
     return ["Tomato", "Corn", "Potato"]
 
-def get_weather_alert():
-    return random.choice(["No alerts", "Drought warning", "Heavy rainfall expected"])
 
 class JamaAlca(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("JamaAlca")
         self.geometry("490x700")
+        self.resizable(True, True)
 
-        # Create a NotificationManager instance here:
-        self.notif_manager = NotificationManager(self)
+        # Services
+        self._badge_update_callbacks = []
+        self.notif_manager = NotificationManager(self, badge_callback=self._update_unread_count)
+        self.db = DBHelper()
+        self.scan_store = ScanStore(db_helper=self.db)
+        # in-memory recent scans (kept small) so HomeScreen and others can display them
+        self.recent_scans = []
+        self.user_id = None
 
+        # Initialize frames
         self.frames = {}
         for F in (LoginScreen, HomeScreen, ProfileScreen, PlantScreen, CropScreen, WeatherScreen, CommunityScreen, AlertsScreen):
             frame = F(parent=self, controller=self)
@@ -38,85 +49,56 @@ class JamaAlca(tk.Tk):
             frame.place(relwidth=1, relheight=1)
         self.show_frame("LoginScreen")
 
+        # After all frames are created, call any registered refresh callbacks
+        # so screens that read data from other frames (for example Home
+        # reading WeatherScreen.forecast) can initialize their dynamic areas.
+        try:
+            self.trigger_refresh()
+        except Exception:
+            pass
+
+        # callbacks for inter-screen refresh notifications
+        self._refresh_callbacks = []
+
+    def register_refresh_callback(self, cb):
+        """Register a callable to be invoked when data changes (e.g., new scan saved)."""
+        if cb not in self._refresh_callbacks:
+            self._refresh_callbacks.append(cb)
+
+    def trigger_refresh(self):
+        """Invoke registered refresh callbacks."""
+        for cb in list(self._refresh_callbacks):
+            try:
+                cb()
+            except Exception:
+                pass
+
+    def register_badge_callback(self, cb):
+        if cb not in self._badge_update_callbacks:
+            self._badge_update_callbacks.append(cb)
+
+    def _update_unread_count(self, count):
+        # Notify any registered badge callbacks
+        for cb in list(self._badge_update_callbacks):
+            try:
+                cb(count)
+            except Exception:
+                pass
+
+        # Instead of recreating all frames (which can trigger screens that call
+        # back into the notification manager and cause recursion), invoke the
+        # registered refresh callbacks so individual screens can update in-place.
+        try:
+            self.trigger_refresh()
+        except Exception:
+            pass
+
     def show_frame(self, frame_name):
         frame = self.frames[frame_name]
         frame.tkraise()
+
     def open_notification_center(self):
         NotificationCenter(self, self.notif_manager)
-
-class LoginScreen(tk.Frame):
-    def __init__(self, parent, controller):
-        super().__init__(parent, bg="#f5f3f0")
-        self.controller = controller
-
-        tk.Label(self, text="JamaAlca Farming App", font=("Arial", 24, "bold"), fg="#2c4a3a", bg="#f5f3f0").pack(pady=(50, 10))
-        tk.Label(self, text="Please log in to continue", font=("Arial", 12), fg="#6b7c6f", bg="#f5f3f0").pack(pady=(0, 20))
-
-        # --- Phone Login ---
-        self.phone_frame = tk.Frame(self, bg="#f5f3f0")
-        self.phone_frame.pack(pady=10)
-
-        tk.Label(self.phone_frame, text="Enter Phone Number:", bg="#f5f3f0", font=("Arial",12)).pack(pady=(0,5))
-        self.phone_entry = tk.Entry(self.phone_frame, font=("Arial",12), bg="white", relief="solid", bd=1)
-        self.phone_entry.pack(pady=(0,10), ipadx=50, ipady=5)
-
-        tk.Button(self.phone_frame, text="Login with Phone Number", width=30, height=2,
-                bg="#4a7c59", fg="white", font=("Arial",12,"bold"), command=self.phone_login).pack(pady=10)
-
-        tk.Button(self.phone_frame, text="Continue as Guest / Sign Up", width=30, height=2,
-                bg="#d4a373", fg="white", font=("Arial",12,"bold"), command=self.show_signup_form).pack(pady=10)
-
-        # --- Signup Form ---
-        self.signup_frame = tk.Frame(self, bg="#f5f3f0")
-        tk.Label(self.signup_frame, text="Sign Up", font=("Arial", 20, "bold"), fg="#2c4a3a", bg="#f5f3f0").pack(pady=(20, 10))
-
-        tk.Label(self.signup_frame, text="Username:", font=("Arial",12), fg="#2c4a3a", bg="#f5f3f0").pack(pady=(10,5))
-        self.username_entry = tk.Entry(self.signup_frame, font=("Arial",12), bg="white", relief="solid", bd=1)
-        self.username_entry.pack(pady=(0,10), ipadx=50, ipady=5)
-
-        tk.Label(self.signup_frame, text="Password:", font=("Arial",12), fg="#2c4a3a", bg="#f5f3f0").pack(pady=(10,5))
-        self.password_entry = tk.Entry(self.signup_frame, show="*", font=("Arial",12), bg="white", relief="solid", bd=1)
-        self.password_entry.pack(pady=(0,10), ipadx=50, ipady=5)
-
-        tk.Label(self.signup_frame, text="Location:", font=("Arial",12), fg="#2c4a3a", bg="#f5f3f0").pack(pady=(10,5))
-        self.location_entry = tk.Entry(self.signup_frame, font=("Arial",12), bg="white", relief="solid", bd=1)
-        self.location_entry.pack(pady=(0,10), ipadx=50, ipady=5)
-
-        tk.Label(self.signup_frame, text="Farm Size:", font=("Arial",12), fg="#2c4a3a", bg="#f5f3f0").pack(pady=(10,5))
-        self.farm_size_entry = tk.Entry(self.signup_frame, font=("Arial",12), bg="white", relief="solid", bd=1)
-        self.farm_size_entry.pack(pady=(0,10), ipadx=50, ipady=5)
-
-        tk.Label(self.signup_frame, text="Main Crop:", font=("Arial",12), fg="#2c4a3a", bg="#f5f3f0").pack(pady=(10,5))
-        self.crop_entry = tk.Entry(self.signup_frame, font=("Arial",12), bg="white", relief="solid", bd=1)
-        self.crop_entry.pack(pady=(0,10), ipadx=50, ipady=5)
-
-        tk.Button(self.signup_frame, text="Sign Up", bg="#4a7c59", fg="white", font=("Arial",12,"bold"),
-                command=self.signup).pack(pady=(10,20), ipadx=20, ipady=5)
-
-    # --- Methods ---
-    def phone_login(self):
-        phone_number = self.phone_entry.get()
-        if phone_number:
-            messagebox.showinfo("Login Success", f"Phone: {phone_number}")
-            self.controller.show_frame("HomeScreen")
-        else:
-            messagebox.showerror("Login Failed", "Please enter your phone number.")
-
-    def show_signup_form(self):
-        self.phone_frame.pack_forget()
-        self.signup_frame.pack(pady=10)
-
-    def signup(self):
-        username = self.username_entry.get()
-        password = self.password_entry.get()
-        location = self.location_entry.get()
-        farm_size = self.farm_size_entry.get()
-        crop = self.crop_entry.get()
-        if username and password and location and farm_size and crop:
-            messagebox.showinfo("Signup Success", f"Welcome, {username}!")
-            self.controller.show_frame("HomeScreen")
-        else:
-            messagebox.showerror("Signup Failed", "Please fill in all fields.")
 
 class HomeScreen(tk.Frame):
     def __init__(self, parent, controller):
@@ -613,7 +595,6 @@ class ProfileScreen(tk.Frame):
 
     def logout(self):
         messagebox.showinfo("Logout", "You have been logged out.")
-        self.controller.show_frame("LoginScreen")
 
 '''
 class WeatherScreen(tk.Frame):
@@ -995,4 +976,3 @@ class AlertsScreen(tk.Frame):
 if __name__ == "__main__":
     app = JamaAlca()
     app.mainloop()
-#    root.mainloop()

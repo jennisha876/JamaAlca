@@ -33,9 +33,26 @@ class WeatherScreen(tk.Frame):
     def load_weather(self):
         try:
             self.forecast = self.weather_fetcher.get_weather_forecast()
+        except Exception:
+            # Graceful fallback: provide a minimal placeholder forecast so UI renders
+            self.forecast = [{
+                "day": "N/A",
+                "temp_max": "--",
+                "temp_min": "--",
+                "rain_mm": "0",
+                "rain_chance": "0%",
+                "wind_speed": "0 km/h",
+                "humidity": "0%",
+                "condition": "Unknown",
+            }]
+
+        # render and trigger refresh (non-fatal)
+        try:
             self.render_forecast()
-        except Exception as e:
-            messagebox.showerror("Weather Error", str(e))
+            if hasattr(self, "controller") and getattr(self.controller, "trigger_refresh", None):
+                self.controller.trigger_refresh()
+        except Exception:
+            pass
 
     def refresh_weather(self):
         self.weather_fetcher.latitude = None

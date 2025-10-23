@@ -1,5 +1,3 @@
-# weather_fetcher.py
-
 import requests
 try:
     from plyer import gps
@@ -45,24 +43,41 @@ class WeatherFetcher:
             print(f"[GPS] Lat: {lat_lon['lat']} Lon: {lat_lon['lon']}")
 
         try:
-            gps.configure(on_location=on_location)
-            gps.start()
-            import time
-            time.sleep(5)  # wait briefly for GPS fix
-            gps.stop()
+            # Configure/start may raise ModuleNotFoundError if plyer can't
+            # load a platform backend (common on Windows desktop). Catch
+            # that specially and fall back silently to IP lookup.
+            try:
+                gps.configure(on_location=on_location)
+                gps.start()
+                import time
+                time.sleep(5)  # wait briefly for GPS fix
+                gps.stop()
+            except ModuleNotFoundError as e:
+                # Backend missing (e.g., plyer.platforms.win.gps). Treat as
+                # GPS unavailable without spamming the console.
+                # We intentionally do not print the full traceback here.
+                pass
         except Exception as e:
-            print("[GPS Error]", e)
+            # Generic errors while interacting with plyer/gps
+            try:
+                print("[GPS Error]", e)
+            except Exception:
+                pass
 
         return lat_lon["lat"], lat_lon["lon"]
 
     # Fallback: get rough location from IP
     def _get_ip_location(self):
         try:
-            response = requests.get("http://ip-api.com/json/")
+            # short timeout to avoid hanging the UI
+            response = requests.get("http://ip-api.com/json/", timeout=5)
             data = response.json()
             return data["lat"], data["lon"]
         except Exception as e:
-            print("[IP Location Error]", e)
+            try:
+                print("[IP Location Error]", e)
+            except Exception:
+                pass
             return None, None
 
     # Public method to get coordinates
@@ -101,7 +116,8 @@ class WeatherFetcher:
             ]),
             "timezone": "auto"
         }
-        r = requests.get(url, params=params)
+        # Use a timeout so slow upstream doesn't hang the caller
+        r = requests.get(url, params=params, timeout=10)
         data = r.json()
 
         days_list = data["daily"]["time"]
