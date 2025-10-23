@@ -14,7 +14,7 @@ class WeatherScreen(tk.Frame):
         tk.Button(nav_frame, text="🏠 Home", bg="#c8e6c9", command=lambda: controller.show_frame("HomeScreen")).pack(side="left", expand=True, fill="x")
         tk.Button(nav_frame, text="🌿 Plant Detection", bg="#c8e6c9", command=lambda: controller.show_frame("PlantScreen")).pack(side="left", expand=True, fill="x")
         tk.Button(nav_frame, text="🌤 Weather", bg="#c8e6c9", command=lambda: controller.show_frame("WeatherScreen")).pack(side="left", expand=True, fill="x")
-        tk.Button(nav_frame, text="📡 Scan Location", bg="#a5d6a7", command=self.refresh_weather).pack(side="right", fill="y")
+        tk.Button(nav_frame, text="👤 Profile", command=lambda: controller.show_frame("ProfileScreen")).pack(side="left", expand=True, fill="x")
 
         # Scroll frame
         self.canvas = tk.Canvas(self, bg="#f9f9f9", highlightthickness=0)
