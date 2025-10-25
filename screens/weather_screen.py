@@ -1,9 +1,13 @@
 import tkinter as tk
+from services.weather_fetcher import WeatherFetcher
+from config import Config
 
 class WeatherScreen(tk.Frame):
     def __init__(self, parent, controller=None):
         super().__init__(parent, bg="#f5f3f0")
         self.controller = controller
+        self.weather_fetcher = WeatherFetcher()
+        self.use_real_data = Config.USE_REAL_DATA
 
         # --- Bottom Navigation ---
         nav_frame = tk.Frame(self, bg="#e8f5e9", height=50)
@@ -36,18 +40,9 @@ class WeatherScreen(tk.Frame):
         # Enable mouse wheel scrolling
         canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
 
-        # --- Dummy weather data ---
-        self.forecast = [
-            {"day": "Today", "temp": 28, "condition": "Sunny", "rain": 10},
-            {"day": "Tomorrow", "temp": 26, "condition": "Partly Cloudy", "rain": 30},
-            {"day": "Wednesday", "temp": 24, "condition": "Rainy", "rain": 80},
-            {"day": "Thursday", "temp": 25, "condition": "Cloudy", "rain": 40},
-            {"day": "Friday", "temp": 27, "condition": "Sunny", "rain": 5},
-            {"day": "Saturday", "temp": 29, "condition": "Sunny", "rain": 5},
-            {"day": "Sunday", "temp": 28, "condition": "Partly Cloudy", "rain": 20},
-        ]
-
-        total_rain = sum(day["rain"] for day in self.forecast)
+        # Load weather data (real or dummy)
+        self.forecast = self.load_weather_data()
+        total_rain = sum(day.get("rain", 0) for day in self.forecast)
         self.is_drought = total_rain < 100
 
         # --- Header ---
@@ -56,15 +51,11 @@ class WeatherScreen(tk.Frame):
                  font=("Arial", 12), fg="#6b7c6f", bg="#f9f9f9").pack(pady=(0, 10))
 
         # --- Current Weather Section ---
+        # This now fetches real weather data from the API instead of using hardcoded values
+        current_weather_data = self.get_current_weather_data()
         self._create_card(scrollable_frame,
             title="Current Weather",
-            data=[
-                ("Temperature", "28°C"),
-                ("Condition", "Sunny"),
-                ("Humidity", "65%"),
-                ("Wind", "12 km/h"),
-                ("Rain Chance", "10%"),
-            ],
+            data=current_weather_data,
             color="#d4c5b0"
         )
 
@@ -96,6 +87,81 @@ class WeatherScreen(tk.Frame):
 
         # --- Recommendations ---
         self._create_recommendations(scrollable_frame)
+
+    def load_weather_data(self):
+        """Load weather data from API or use dummy data as fallback"""
+        if self.use_real_data:
+            try:
+                # Get coordinates first
+                coords = self.weather_fetcher.get_coordinates()
+                if coords[0] and coords[1]:
+                    # Fetch real weather data
+                    real_forecast = self.weather_fetcher.get_weather_forecast()
+                    # Convert to expected format
+                    formatted_forecast = []
+                    for i, day_data in enumerate(real_forecast):
+                        # Extract rain percentage from rain_chance, handle decimal values
+                        rain_chance_str = day_data.get("rain_chance", "0%").replace("%", "")
+                        try:
+                            rain_chance = int(float(rain_chance_str))
+                        except (ValueError, TypeError):
+                            rain_chance = 0
+                        
+                        # Extract temperature, handle decimal values
+                        temp_str = day_data.get("temp_max", "0°C").replace("°C", "")
+                        try:
+                            temp = int(float(temp_str))
+                        except (ValueError, TypeError):
+                            temp = 0
+                        
+                        # Convert date to day name (Today, Tomorrow, Monday, Tuesday, etc.)
+                        # This makes the forecast much easier to read for farmers
+                        day_name = self._get_day_name(i, day_data.get("day", "Unknown"))
+                        
+                        formatted_forecast.append({
+                            "day": day_name,
+                            "temp": temp,
+                            "condition": day_data.get("condition", "Unknown"),
+                            "rain": rain_chance
+                        })
+                    return formatted_forecast
+                else:
+                    print("Could not get coordinates, using dummy data")
+            except Exception as e:
+                print(f"Error loading real weather data: {e}, using dummy data")
+        
+        # Fallback to dummy data
+        return [
+            {"day": "Today", "temp": 28, "condition": "Sunny", "rain": 10},
+            {"day": "Tomorrow", "temp": 26, "condition": "Partly Cloudy", "rain": 30},
+            {"day": "Wednesday", "temp": 24, "condition": "Rainy", "rain": 80},
+            {"day": "Thursday", "temp": 25, "condition": "Cloudy", "rain": 40},
+            {"day": "Friday", "temp": 27, "condition": "Sunny", "rain": 5},
+            {"day": "Saturday", "temp": 29, "condition": "Sunny", "rain": 5},
+            {"day": "Sunday", "temp": 28, "condition": "Partly Cloudy", "rain": 20},
+        ]
+
+    def _get_day_name(self, index, date_string):
+        """
+        Convert date index to friendly day names
+        This makes the weather forecast easier to read - instead of "2024-01-15" it shows "Today", "Tomorrow", etc.
+        """
+        from datetime import datetime, timedelta
+        
+        # Day names for the week
+        day_names = ["Today", "Tomorrow"]
+        
+        # Get the current date and add days to get the day names
+        today = datetime.now()
+        for i in range(2, 7):  # For days 2-6 (Wednesday through Sunday)
+            future_date = today + timedelta(days=i)
+            day_names.append(future_date.strftime("%A"))  # %A gives full day name (Monday, Tuesday, etc.)
+        
+        # Return the appropriate day name based on the index
+        if index < len(day_names):
+            return day_names[index]
+        else:
+            return "Unknown"
 
     # -----------------------
     # Helper: Info Card
@@ -160,3 +226,63 @@ class WeatherScreen(tk.Frame):
             row.pack(anchor="w", pady=2)
             tk.Label(row, text=icon, font=("Arial", 11, "bold"), fg="#2c4a3a", bg=bg, width=2).pack(side="left")
             tk.Label(row, text=text, font=("Arial", 11), fg="#2c4a3a", bg=bg, wraplength=400, justify="left").pack(side="left")
+
+    def get_current_weather_data(self):
+        """
+        Get current weather data from the API
+        This fetches real-time weather information instead of using hardcoded values
+        """
+        if self.use_real_data:
+            try:
+                # Get coordinates and fetch real weather data
+                coords = self.weather_fetcher.get_coordinates()
+                if coords[0] and coords[1]:
+                    forecast = self.weather_fetcher.get_weather_forecast()
+                    if forecast and len(forecast) > 0:
+                        # Get today's weather data (first day in forecast)
+                        today = forecast[0]
+                        
+                        # Extract and format the weather data
+                        temp_max = today.get("temp_max", "0°C").replace("°C", "")
+                        temp_min = today.get("temp_min", "0°C").replace("°C", "")
+                        condition = today.get("condition", "Unknown")
+                        humidity = today.get("humidity", "0%").replace("%", "")
+                        wind_speed = today.get("wind_speed", "0 km/h").replace(" km/h", "")
+                        rain_chance = today.get("rain_chance", "0%").replace("%", "")
+                        
+                        # Format temperature as average of max and min
+                        try:
+                            temp_avg = (int(float(temp_max)) + int(float(temp_min))) // 2
+                            temp_display = f"{temp_avg}°C"
+                        except (ValueError, TypeError):
+                            temp_display = f"{temp_max}°C"
+                        
+                        return [
+                            ("Temperature", temp_display),
+                            ("Condition", condition),
+                            ("Humidity", f"{humidity}%"),
+                            ("Wind", f"{wind_speed} km/h"),
+                            ("Rain Chance", f"{rain_chance}%"),
+                        ]
+                
+                # Fallback if weather data unavailable
+                return self.get_fallback_weather_data()
+            except Exception as e:
+                print(f"Error getting current weather data: {e}")
+                return self.get_fallback_weather_data()
+        else:
+            # Use dummy data for demonstration
+            return self.get_fallback_weather_data()
+    
+    def get_fallback_weather_data(self):
+        """
+        Get fallback weather data when real data is unavailable
+        This ensures the app always shows something useful to the farmer
+        """
+        return [
+            ("Temperature", "28°C"),
+            ("Condition", "Sunny"),
+            ("Humidity", "65%"),
+            ("Wind", "12 km/h"),
+            ("Rain Chance", "10%"),
+        ]

@@ -10,6 +10,9 @@ msrest>=0.7.1
 requests>=2.31.0  # HTTP requests
 plyer>=2.1.0  # GPS functionality
 
+# Configuration
+python-dotenv>=1.0.0  # Environment variables
+
 # UI
 tkinter  # Usually comes with Python
 
