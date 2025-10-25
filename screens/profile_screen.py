@@ -108,5 +108,12 @@ class ProfileScreen(tk.Frame):
             tk.Checkbutton(frame, variable=var, bg="white").pack(side="right")
 
     def logout(self):
-        messagebox.showinfo("Logout", "You have been logged out.")
+        """
+        Handle user logout
+        This stops the notification system and clears user data
+        """
+        # Stop notifications for the logged-out user
+        self.controller.notif_manager.stop_notifications()
+        print("[Logout] User logged out - notifications stopped")
+        messagebox.showinfo("Logout", "You have been logged out. Notifications will stop.")
         self.controller.show_frame("LoginScreen")

@@ -16,15 +16,44 @@ class Notification:
 
 #Notification Manager
 class NotificationManager:
-    """Handles posting, storing, and displaying toast notifications."""
+    """
+    Handles posting, storing, and displaying toast notifications.
+    This system only sends notifications after the user has logged in.
+    """
     def __init__(self, root, badge_callback=None):
         self.root = root
         self.notifications = []
-        self.running = True
+        self.running = False  # Start with notifications disabled
         self.badge_callback = badge_callback
-        threading.Thread(target=self._auto_generate_demo, daemon=True).start()
+        self.user_logged_in = False  # Track login status
+        # Don't start auto-generating notifications until user logs in
+
+    def start_notifications(self):
+        """
+        Start sending notifications after user logs in
+        This ensures notifications only appear for logged-in users
+        """
+        if not self.running:
+            self.running = True
+            self.user_logged_in = True
+            print("[Notifications] Starting notification system for logged-in user")
+            threading.Thread(target=self._auto_generate_demo, daemon=True).start()
+
+    def stop_notifications(self):
+        """
+        Stop sending notifications when user logs out
+        This prevents notifications from appearing for non-logged-in users
+        """
+        self.running = False
+        self.user_logged_in = False
+        print("[Notifications] Stopping notification system - user logged out")
 
     def post(self, title, message, category="General"):
+        # Only post notifications if user is logged in
+        if not self.user_logged_in:
+            print("[Notifications] Ignoring notification - user not logged in")
+            return
+            
         notif = Notification(title, message, category)
         self.notifications.append(notif)
         self._show_toast(notif)

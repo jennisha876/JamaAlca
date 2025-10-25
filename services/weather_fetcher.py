@@ -34,7 +34,13 @@ class WeatherFetcher:
 
     # Try to get GPS coordinates (mobile or laptop with GPS)
     def _get_gps_location(self):
+        """
+        Try to get GPS coordinates from the device
+        This works on mobile devices and some laptops with GPS capability
+        If GPS is not available, we'll fall back to IP-based location
+        """
         if not USE_PLYER:
+            print("[GPS] Plyer GPS module not available - using IP location instead")
             return None, None
 
         lat_lon = {"lat": None, "lon": None}
@@ -42,27 +48,56 @@ class WeatherFetcher:
         def on_location(**kwargs):
             lat_lon["lat"] = kwargs.get("lat")
             lat_lon["lon"] = kwargs.get("lon")
-            print(f"[GPS] Lat: {lat_lon['lat']} Lon: {lat_lon['lon']}")
+            print(f"[GPS] Location found: Lat: {lat_lon['lat']} Lon: {lat_lon['lon']}")
 
         try:
+            print("[GPS] Attempting to get GPS location...")
             gps.configure(on_location=on_location)
             gps.start()
             import time
-            time.sleep(5)  # wait briefly for GPS fix
+            time.sleep(3)  # Reduced wait time for faster fallback
             gps.stop()
+            
+            if lat_lon["lat"] and lat_lon["lon"]:
+                print("[GPS] GPS location successful!")
+                return lat_lon["lat"], lat_lon["lon"]
+            else:
+                print("[GPS] GPS location timeout - no coordinates received")
+                return None, None
+                
         except Exception as e:
-            print("[GPS Error]", e)
-
-        return lat_lon["lat"], lat_lon["lon"]
+            print(f"[GPS Error] GPS not available on this device: {e}")
+            print("[GPS] This is normal for desktop computers without GPS capability")
+            return None, None
 
     # Fallback: get rough location from IP
     def _get_ip_location(self):
+        """
+        Get approximate location from IP address
+        This is less accurate than GPS but works on all devices with internet
+        """
         try:
-            response = requests.get("http://ip-api.com/json/")
+            print("[IP] Getting location from IP address...")
+            response = requests.get("http://ip-api.com/json/", timeout=10)
+            response.raise_for_status()  # Raise exception for HTTP errors
             data = response.json()
-            return data["lat"], data["lon"]
+            
+            if data.get("status") == "success":
+                lat, lon = data.get("lat"), data.get("lon")
+                print(f"[IP] Location found: Lat: {lat} Lon: {lon}")
+                return lat, lon
+            else:
+                print(f"[IP] Location service returned error: {data.get('message', 'Unknown error')}")
+                return None, None
+                
+        except requests.exceptions.Timeout:
+            print("[IP] Location service timeout - check your internet connection")
+            return None, None
+        except requests.exceptions.RequestException as e:
+            print(f"[IP] Network error getting location: {e}")
+            return None, None
         except Exception as e:
-            print("[IP Location Error]", e)
+            print(f"[IP] Unexpected error getting location: {e}")
             return None, None
 
     # Public method to get coordinates
