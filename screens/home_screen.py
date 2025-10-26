@@ -86,7 +86,7 @@ class HomeScreen(tk.Frame):
 
         row2 = tk.Frame(stats_frame, bg="#f9f9f9")
         row2.pack(fill="x", pady=2)
-        self._stat_card(row2, "💧 Next Watering", self.data_service.get_next_watering(), "#b3e5fc", "WeatherScreen", controller).pack(side="left", expand=True, fill="x", padx=5)
+        self._stat_card(row2, "💧 Next Watering", self.data_service.get_next_watering(), "#b3e5fc", "IrrigationScreen", controller).pack(side="left", expand=True, fill="x", padx=5)
         self._stat_card(row2, "💰 Market Price", self.data_service.get_market_price(), "#fff59d", None, controller).pack(side="left", expand=True, fill="x", padx=5)
 
         # Sustainability Impact

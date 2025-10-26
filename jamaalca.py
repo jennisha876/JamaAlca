@@ -11,6 +11,7 @@ from screens.plant_screen import PlantScreen
 from screens.weather_screen import WeatherScreen
 from screens.community_screen import CommunityScreen
 from screens.alerts_screen import AlertsScreen
+from screens.irrigation_sreen import IrrigationScreen
 from utils.notifications import NotificationManager, NotificationCenter
 
 class JamaAlca(tk.Tk):
@@ -33,7 +34,7 @@ class JamaAlca(tk.Tk):
         # Set up all the different screens (pages) in the app
         # Each screen is like a different room in a house - they all exist but you only see one at a time
         self.frames = {}
-        screen_classes = (LoginScreen, HomeScreen, ProfileScreen, PlantScreen, WeatherScreen, CommunityScreen, AlertsScreen)
+        screen_classes = (LoginScreen, HomeScreen, ProfileScreen, PlantScreen, WeatherScreen, CommunityScreen, AlertsScreen, IrrigationScreen)
         
         for ScreenClass in screen_classes:
             # Create each screen and store it in our frames dictionary
