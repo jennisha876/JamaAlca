@@ -1,27 +1,17 @@
-"""
-Plant Disease Detection Screen
-This screen lets farmers take photos of their plants and get AI-powered disease detection
-Think of this as a smart doctor for plants - you show it a photo and it tells you what's wrong
-"""
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import threading
+from utils.scrollable_frame import ScrollableFrame
 from PIL import Image, ImageTk
 from services.predict_disease import predict_disease
 from services.treatment_recommendation import get_treatment_recommendation
 from services.weather_fetcher import WeatherFetcher
 from services.data_service import DataService
+from datetime import datetime
 
 class PlantScreen(tk.Frame):
-    """
-    Plant Disease Detection Screen
-    This is where farmers can check if their plants are healthy or sick
-    It's like having a plant doctor in your pocket - just take a photo and get advice
-    """
     def __init__(self, parent, controller):
         super().__init__(parent, bg="#f9f9f9")
-        # Set up the data service to track what the farmer is doing
-        self.data_service = DataService()
 
         # --- Bottom Navigation ---
         nav_frame = tk.Frame(self, bg="#e8f5e9", height=50)
@@ -93,7 +83,7 @@ class PlantScreen(tk.Frame):
         # --- Image area ---
         self.image_frame = tk.Frame(scrollable_frame, bg="#e8f5e9", bd=2, relief="ridge")
         self.image_frame.pack(fill="x", padx=15, pady=5)
-        self.image_label = tk.Label(self.image_frame, text="📷 No image captured", font=("Arial", 12), bg="#e8f5e9", height=15)
+        self.image_label = tk.Label(self.image_frame, text="📷 No image captured", font=("Arial", 12), bg="#e8f5e9")
         self.image_label.pack(fill="both", expand=True)
 
         # --- Buttons ---
@@ -128,87 +118,81 @@ class PlantScreen(tk.Frame):
 
         self.recent_frame = tk.Frame(scrollable_frame, bg="#f9f9f9")
         self.recent_frame.pack(fill="x", padx=15, pady=(0, 20))
-        self._add_recent_scan("Corn", "Healthy", "Today")
-        self._add_recent_scan("Tomato", "Leaf Spot", "Yesterday")
-        self._add_recent_scan("Wheat", "Healthy", "3 days ago")
+        # Show only the 3 most recent scans from DataService
+        self.data_service = DataService()  # Add this if not already present
+        recent_scans = self.data_service.get_recent_scans(3)
+        if recent_scans:
+            for scan in recent_scans:
+                crop = scan["crop"]
+                status = scan["status"]
+                # Format date for display
+                date_obj = scan["date"]
+                if isinstance(date_obj, str):
+                    date_str = date_obj
+                else:
+                    days_ago = (datetime.now() - date_obj).days
+                    if days_ago == 0:
+                        date_str = "Today"
+                    elif days_ago == 1:
+                        date_str = "Yesterday"
+                    else:
+                        date_str = f"{days_ago} days ago"
+                self._add_recent_scan(crop, status, date_str)
+        else:
+            tk.Label(self.recent_frame, text="No recent scans yet.", font=("Arial", 11), fg="#6b7c6f", bg="#f9f9f9").pack(anchor="w", padx=10, pady=5)
 
     def upload_image(self):
-        """
-        Let the farmer choose a photo from their computer
-        This is like opening a photo album and picking which picture to show the doctor
-        """
-        # Ask the farmer to pick a photo file from their computer
         path = filedialog.askopenfilename(filetypes=[("Image Files", "*.jpg *.jpeg *.png")])
         if not path:
-            return  # They didn't pick anything, so we stop here
+            return
 
-        # Load the photo and show it on the screen
         img = Image.open(path)
+        # Resize image to fit nicely in the frame, max width=420, max height=220
+        max_w, max_h = 420, 220
+        w, h = img.size
+        scale = min(max_w/w, max_h/h, 1)
+        new_size = (int(w*scale), int(h*scale))
+        img = img.resize(new_size, Image.Resampling.LANCZOS)
         self.img_tk = ImageTk.PhotoImage(img)
         self.image_label.config(image=self.img_tk, text="")
-        self.image_label.file_path = path  # Remember where the photo is stored
+        self.image_label.file_path = path
 
-        # Hide the "take photo" button and show the "retake" button instead
         self.capture_btn.pack_forget()
         self.retake_btn.pack(fill="x", padx=15, pady=8)
-        
-        # Start analyzing the photo to see if there are any diseases
         self._simulate_analysis()
 
     def _simulate_analysis(self):
-        """
-        Start analyzing the plant photo to detect diseases
-        This is like sending the photo to a plant doctor and waiting for their diagnosis
-        """
-        # Show a "thinking" message while the AI is working
         self.overlay = tk.Label(self.image_frame, text="🔍 Analyzing...", bg="black", fg="white", font=("Arial", 14, "bold"))
         self.overlay.place(relx=0.5, rely=0.5, anchor="center")
 
         def analyze():
-            """
-            This function runs in the background so the app doesn't freeze
-            It's like having a separate worker do the hard work while you wait
-            """
-            try:
-                # Get the photo that the farmer selected
-                image_path = getattr(self.image_label, "file_path", None)
-                if not image_path:
-                    self.after(0, lambda: self._show_error("No image selected"))
-                    return
+            image_path = getattr(self.image_label, "file_path", None)
+            if not image_path:
+                return
 
-                # Make sure they picked what type of plant it is
-                crop_name = self.selected_crop.get()
-                if crop_name == "Select Crop":
-                    self.after(0, lambda: messagebox.showerror("Error", "Please select a crop before analysis."))
-                    return
+            crop_name = self.selected_crop.get()
+            if crop_name == "Select Crop":
+                messagebox.showerror("Error", "Please select a crop before analysis.")
+                return
 
-                # Send the photo to the AI to see if there are any diseases
-                disease, confidence = predict_disease(image_path, crop_name)
-                healthy = "healthy" in disease.lower()
+            disease, confidence = predict_disease(image_path, crop_name)
+            healthy = "healthy" in disease.lower()
 
-                # If there's a disease, get advice on how to fix it
-                treatment = []
-                if not healthy:
-                    suggestion_text = get_treatment_recommendation(disease)
-                    treatment = suggestion_text.split("\n")
+            treatment = []
+            if not healthy:
+                suggestion_text = get_treatment_recommendation(disease)
+                treatment = suggestion_text.split("\n")
 
-                # Remember that the farmer checked their plants today
-                self.data_service.update_scan_data(crop_name, not healthy)
-                
-                # Show the results to the farmer
-                self.after(0, lambda: self._show_result({
-                    "crop": crop_name,
-                    "healthy": healthy,
-                    "disease": None if healthy else disease,
-                    "confidence": confidence,
-                    "treatment": treatment
-                }))
-                
-            except Exception as e:
-                # If something goes wrong, show an error message
-                self.after(0, lambda: self._show_error(f"Analysis failed: {str(e)}"))
+            self.overlay.destroy()
 
-        # Start the analysis in a separate thread so the app doesn't freeze
+            self._show_result({
+                "crop": crop_name,
+                "healthy": healthy,
+                "disease": None if healthy else disease,
+                "confidence": confidence,
+                "treatment": treatment
+            })
+
         threading.Thread(target=analyze, daemon=True).start()
 
     def _show_result(self, result):
@@ -225,10 +209,31 @@ class PlantScreen(tk.Frame):
         tk.Label(self.result_frame, text=f"Confidence: {result['confidence']}%", fg=color, bg=self.result_frame["bg"], font=("Arial", 10)).pack(anchor="w", padx=10, pady=(0, 5))
 
         if not result["healthy"]:
-            tk.Label(self.result_frame, text=f"Disease: {result['disease']}", fg="#d32f2f", bg=self.result_frame["bg"], font=("Arial", 11, "bold")).pack(anchor="w", padx=10)
-            tk.Label(self.result_frame, text="Treatment Recommendations:", fg="#4a7c59", bg=self.result_frame["bg"], font=("Arial", 11, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
-            for i, step in enumerate(result["treatment"], start=1):
-                tk.Label(self.result_frame, text=f"{i}. {step}", fg="#2c4a3a", bg=self.result_frame["bg"], font=("Arial", 10), wraplength=450, justify="left").pack(anchor="w", padx=20)
+            # Disease name with icon
+            disease_text = f"⚠ Disease: {result['disease']}"
+            tk.Label(self.result_frame, text=disease_text, fg="#d32f2f", bg=self.result_frame["bg"], font=("Arial", 12, "bold"), wraplength=400, justify="left").pack(anchor="w", padx=10, pady=(0,2))
+            tk.Label(self.result_frame, text="Recommended Actions:", fg="#4a7c59", bg=self.result_frame["bg"], font=("Arial", 11, "bold"), wraplength=400).pack(anchor="w", padx=10, pady=(5, 0))
+            import re
+            def clean_step(text):
+                # Remove Markdown bold/italics and extra symbols
+                text = re.sub(r"\*\*|__|\*|_", "", text)
+                text = re.sub(r"^\d+\.\s*", "", text)  # Remove leading numbers
+                text = text.replace("–", "-")
+                return text.strip()
+
+            concise_steps = [clean_step(step) for step in result["treatment"] if step.strip()]
+            actions_frame = tk.Frame(self.result_frame, bg=self.result_frame["bg"])
+            actions_frame.pack(anchor="w", padx=18, pady=(0,5), fill="x")
+            if concise_steps:
+                for i, step in enumerate(concise_steps, start=1):
+                    # Allow longer advice, wrap at 480px, and add spacing
+                    display_step = step
+                    if len(display_step) > 300:
+                        display_step = display_step[:297] + "..."
+                    bullet = "🌱 " if i == 1 else "• "
+                    tk.Label(actions_frame, text=f"{bullet}{display_step}", fg="#2c4a3a", bg=self.result_frame["bg"], font=("Arial", 10), wraplength=480, justify="left").pack(anchor="w", pady=4)
+            else:
+                tk.Label(actions_frame, text="No specific recommendations available.", fg="#b71c1c", bg=self.result_frame["bg"], font=("Arial", 10), wraplength=480).pack(anchor="w", pady=4)
 
         tk.Button(
             self.result_frame,
@@ -238,20 +243,6 @@ class PlantScreen(tk.Frame):
             font=("Arial", 11, "bold"),
             relief="flat"
         ).pack(fill="x", padx=10, pady=(10, 10))
-
-    def _show_error(self, error_message):
-        """Show error message in the UI"""
-        if self.overlay:
-            self.overlay.destroy()
-        
-        if self.result_frame:
-            self.result_frame.destroy()
-
-        self.result_frame = tk.Frame(self.image_frame, bg="#ffebee", bd=2, relief="ridge")
-        self.result_frame.pack(fill="x", pady=10)
-        
-        tk.Label(self.result_frame, text="❌ Analysis Error", fg="#c62828", bg="#ffebee", font=("Arial", 13, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
-        tk.Label(self.result_frame, text=error_message, fg="#d32f2f", bg="#ffebee", font=("Arial", 10), wraplength=450, justify="left").pack(anchor="w", padx=10, pady=(0, 5))
 
     def reset_screen(self):
         self.image_label.config(image="", text="📷 No image captured")

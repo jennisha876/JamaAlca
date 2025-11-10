@@ -16,17 +16,15 @@ class DataService:
     
     def __init__(self):
         # Check if we should use real data or fake data
-        # This is like a switch - you can turn it on or off
         self.use_real_data = Config.USE_REAL_DATA
-        
         # This is where we store information about what the farmer has done
-        # Think of this as the app's notebook where it writes down everything
         self.user_data = {
-            "water_saved": 0,        # How much water the farmer has saved (in liters)
-            "yield_increase": 0,     # How much more crops they're growing (in percentage)
-            "chemicals_reduced": 0,  # How many fewer chemicals they're using (in percentage)
-            "scans_today": 0,        # How many times they've checked their plants today
-            "last_scan": None        # When they last checked their plants
+            "water_saved": 0,
+            "yield_increase": 0,
+            "chemicals_reduced": 0,
+            "scans_today": 0,
+            "last_scan": None,
+            "scan_history": []  # List of dicts: {"crop": str, "status": str, "date": datetime}
         }
     
     def get_sustainability_metrics(self):
@@ -167,18 +165,32 @@ class DataService:
         This is like keeping a diary - every time the farmer checks their plants, we write it down
         We also update their progress based on what they found
         """
-        # Count how many times they've checked their plants today
         self.user_data["scans_today"] += 1
         self.user_data["last_scan"] = datetime.now()
-        
-        # Update sustainability metrics based on scan results
-        # If they found a healthy plant, they're doing something right
+        # Add scan to history
+        status = "Healthy" if not disease_detected else "Disease Detected"
+        self.user_data["scan_history"].append({
+            "crop": crop_type,
+            "status": status,
+            "date": datetime.now()
+        })
+        # Keep only the last 20 scans for memory efficiency
+        self.user_data["scan_history"] = self.user_data["scan_history"][-20:]
+        # Update sustainability metrics
         if not disease_detected:
-            self.user_data["water_saved"] += random.randint(50, 200)      # They saved some water
-            self.user_data["yield_increase"] += random.randint(1, 3)      # Their crops are growing better
+            self.user_data["water_saved"] += random.randint(50, 200)
+            self.user_data["yield_increase"] += random.randint(1, 3)
         else:
-            # If they found a disease, they're learning to use fewer chemicals
-            self.user_data["chemicals_reduced"] += random.randint(1, 5)   # They're using fewer chemicals
+            self.user_data["chemicals_reduced"] += random.randint(1, 5)
+
+    def get_recent_scans(self, count=3):
+        """
+        Return the most recent scan records (up to 'count')
+        """
+        history = self.user_data.get("scan_history", [])
+        # Sort by date descending
+        sorted_history = sorted(history, key=lambda x: x["date"], reverse=True)
+        return sorted_history[:count]
     
     def get_todays_tip(self):
         """

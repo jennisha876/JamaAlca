@@ -1,4 +1,3 @@
-import re
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -37,32 +36,24 @@ class LoginScreen(tk.Frame):
         self.password_entry.pack(pady=(0,10), ipadx=50, ipady=5)
 
         tk.Label(self.signup_frame, text="Location:", font=("Arial",12), fg="#2c4a3a", bg="#f5f3f0").pack(pady=(10,5))
-        self.location_combobox = ttk.Combobox(self.signup_frame, values=["Mandeville, Manchester", "Christiana, Manchester", "Porus, Manchester", "Williamsfield, Manchester", "Spaldings, Manchester", "Newport, Manchester"], state="readonly", font=("Arial",12))   
-        self.location_combobox.pack(pady=(0,10), ipadx=50, ipady=5)
+        self.location_entry = tk.Entry(self.signup_frame, font=("Arial",12), bg="white", relief="solid", bd=1)
+        self.location_entry.pack(pady=(0,10), ipadx=50, ipady=5)
 
         tk.Label(self.signup_frame, text="Farm Size:", font=("Arial",12), fg="#2c4a3a", bg="#f5f3f0").pack(pady=(10,5))
-        self.farm_size_combobox = ttk.Combobox(self.signup_frame, values=["Small", "Medium", "Large"], state="readonly", font=("Arial",12)) 
-        self.farm_size_combobox.pack(pady=(0,10), ipadx=50, ipady=5)
+        self.farm_size_entry = tk.Entry(self.signup_frame, font=("Arial",12), bg="white", relief="solid", bd=1)
+        self.farm_size_entry.pack(pady=(0,10), ipadx=50, ipady=5)
 
         tk.Label(self.signup_frame, text="Main Crop:", font=("Arial",12), fg="#2c4a3a", bg="#f5f3f0").pack(pady=(10,5))
-        self.crop_combobox = ttk.Combobox(self.signup_frame, values=["Corn", "Wheat", "Rice", "Soybeans", "Cotton", "Vegetables", "Fruits", "Sugarcane"], state="readonly", font=("Arial",12))
-        self.crop_combobox.pack(pady=(0,10), ipadx=50, ipady=5)
+        self.crop_entry = tk.Entry(self.signup_frame, font=("Arial",12), bg="white", relief="solid", bd=1)
+        self.crop_entry.pack(pady=(0,10), ipadx=50, ipady=5)
 
         tk.Button(self.signup_frame, text="Sign Up", bg="#4a7c59", fg="white", font=("Arial",12,"bold"),
                 command=self.signup).pack(pady=(10,20), ipadx=20, ipady=5)
 
     def phone_login(self):
-        """
-        Handle phone number login
-        This starts the notification system once the user successfully logs in
-        """
-        phone_number = self.phone_entry.get().strip()
-        pattern = r"^\d{3} \d{3} \d{4}$"
-        if re.match(pattern, phone_number):
-            # Start notifications for the logged-in user
-            self.controller.notif_manager.start_notifications()
-            messagebox.showinfo("Login Success", f"Welcome! Phone: {phone_number}")
-            print(f"[Login] User logged in with phone: {phone_number}")
+        phone_number = self.phone_entry.get()
+        if phone_number:
+            messagebox.showinfo("Login Success", f"Phone: {phone_number}")
             self.controller.show_frame("HomeScreen")
         else:
             messagebox.showerror("Login Failed", "Please enter your phone number.")
@@ -72,20 +63,13 @@ class LoginScreen(tk.Frame):
         self.signup_frame.pack(pady=10)
 
     def signup(self):
-        """
-        Handle user signup
-        This starts the notification system once the user successfully signs up
-        """
         username = self.username_entry.get()
         password = self.password_entry.get()
-        location = self.location_combobox.get()
-        farm_size = self.farm_size_combobox.get()
-        crop = self.crop_combobox.get()
+        location = self.location_entry.get()
+        farm_size = self.farm_size_entry.get()
+        crop = self.crop_entry.get()
         if username and password and location and farm_size and crop:
-            # Start notifications for the new user
-            self.controller.notif_manager.start_notifications()
-            messagebox.showinfo("Signup Success", f"Welcome, {username}! Your farm in {location} is ready.")
-            print(f"[Signup] New user registered: {username} from {location}, farming {crop}")
+            messagebox.showinfo("Signup Success", f"Welcome, {username}!")
             self.controller.show_frame("HomeScreen")
         else:
             messagebox.showerror("Signup Failed", "Please fill in all fields.")
